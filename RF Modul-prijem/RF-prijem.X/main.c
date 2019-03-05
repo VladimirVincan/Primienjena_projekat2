@@ -279,7 +279,7 @@ int main(void)
         if(tempRX)
         {
             WriteUART1(tempRX);
-            //parse(tempRX);
+            parse(tempRX);
             tempRX=0;
             change_led1();
             change_led2();
