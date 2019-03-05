@@ -23,8 +23,16 @@ extern "C" {
 #define MOT_IN2_LAT LATDbits.LATD3
 #define MOT_IN3_LAT LATDbits.LATD8
 #define MOT_IN4_LAT LATDbits.LATD9
+
+#define OCxCON_OCSIDL_HALT 0x2000
+#define OCxCON_OCSIDL_CONTINUE 0x0000 
+#define OCxCON_OCTSEL_TIMER3 0x0008
+#define OCxCON_OCTSEL_TIMER2 0x0000
+#define OCxCON_OCM_PWM_ON_FAULT_ENABLED 0x0007 
+#define OCxCON_OCM_PWM_ON_FAULT_DISABLED 0x0006
     
 #define PWM_MIN 0
+#define PWM_MID 1249    
 #define PWM_MAX 2499
 
 #ifdef	__cplusplus

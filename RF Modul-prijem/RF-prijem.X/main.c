@@ -28,33 +28,43 @@ void __attribute__((__interrupt__)) _T2Interrupt(void)
     IFS0bits.T2IF = 0;
 }
 
+void __attribute__((__interrupt__)) _T3Interrupt(void)
+{
+   	TMR3 = 0;
+    IFS0bits.T3IF = 0;
+}
+
 void mot1_init_pwm(void)
 {
-    PR1=2499;//odredjuje frekvenciju po formuli -- Set the Timer 2 period (max 65535)
-    OC1RS=20;//postavimo pwm
-    OC1R=1000;//inicijalni pwm pri paljenju samo
-    OC1CON = 0x0006;
-    T2CONbits.TON=1;//ukljucujemo timer koji koristi
-    OC1RS=1249;//ovim postavljamo faktor ispune
+    PR2=2499;
+    OC1RS=20;
+    OC1R=1000;
+    OC1CON = OCxCON_OCSIDL_CONTINUE 
+            | OCxCON_OCTSEL_TIMER2 
+            | OCxCON_OCM_PWM_ON_FAULT_DISABLED;
+    T2CONbits.TON=1;
+    OC1RS=1249;
 }
 
 void mot2_init_pwm(){
-    PR2=2499;//odredjuje frekvenciju po formuli -- Set the Timer 3 period (max 65535)
-    OC2RS=20;//postavimo pwm
-    OC2R=1000;//inicijalni pwm pri paljenju samo
-    OC2CON = 0x0006;
-    T2CONbits.TON=1;//ukljucujemo timer koji koristi
-    OC2RS=1249;//ovim postavljamo faktor ispune
+    PR3=2499;
+    OC2RS=20;
+    OC2R=1000;
+    OC2CON = OCxCON_OCSIDL_CONTINUE 
+            | OCxCON_OCTSEL_TIMER3 
+            | OCxCON_OCM_PWM_ON_FAULT_DISABLED;
+    T3CONbits.TON=1;
+    OC2RS=1249;
 }
 
-void mot1_set_pwm(int percentage)
+void mot1_set_pwm(int duty)
 {
-    OC1RS = percentage;//ovim postavljamo pwm
+    OC1RS = duty;
 }
 
-void mot2_set_pwm(int percentage)
+void mot2_set_pwm(int duty)
 {
-    OC2RS = percentage;//ovim postavljamo pwm
+    OC2RS = duty;
 }
 
 /***********************************************/
@@ -65,14 +75,13 @@ void mot2_set_pwm(int percentage)
 
 void initUART1(void)
 {
-    U1BRG=0x0207;//ovim odredjujemo baudrate 1200
-    U1MODEbits.ALTIO=0;//biramo koje pinove koristimo za komunikaciju osnovne ili alternativne
-    IEC0bits.U1RXIE=1;//omogucavamo rx1 interupt
+    U1BRG=0x0207;
+    U1MODEbits.ALTIO=0;
+    IEC0bits.U1RXIE=1;
     U1STA&=0xfffc;
-    U1MODEbits.UARTEN=1;//ukljucujemo ovaj modul
-    U1STAbits.UTXEN=1;//ukljucujemo predaju
+    U1MODEbits.UARTEN=1;
+    U1STAbits.UTXEN=1;
 }
-
 
 void __attribute__((__interrupt__)) _U1RXInterrupt(void) 
 {
@@ -105,7 +114,7 @@ void init_pins()
     MOT_IN4_TRIS = 0;
 }
 
-void set_forward()
+void set_turbo()
 {
     mot1_set_pwm(PWM_MIN);
     MOT_IN1_LAT = 1;
@@ -113,12 +122,20 @@ void set_forward()
     mot1_set_pwm(PWM_MAX);
 }
 
+void set_forward()
+{
+    mot1_set_pwm(PWM_MIN);
+    MOT_IN1_LAT = 1;
+    MOT_IN2_LAT = 0;
+    mot1_set_pwm(PWM_MID);
+}
+
 void set_backward()
 {
     mot1_set_pwm(PWM_MIN);
     MOT_IN1_LAT = 0;
     MOT_IN2_LAT = 1;
-    mot1_set_pwm(PWM_MAX);
+    mot1_set_pwm(PWM_MID);
 }
 
 void set_left()
@@ -174,17 +191,19 @@ void parse(unsigned char c)
 
 char get_movement_command()
 {
-    int f=0,b=0,L=0,r=0,s=0,x=0;
+    int t=0,f=0,b=0,L=0,r=0,s=0,x=0;
     int i;
     for (i=0;i<MESSAGES_LEN;++i)
-        if (messages[i]=='f') ++f;
+        if (messages[i]=='t') ++t;
+        else if (messages[i]=='f') ++f;
         else if (messages[i]=='b') ++b;
         else if (messages[i]=='L') ++L;
         else if (messages[i]=='r') ++r;
         else if (messages[i]=='s') ++s;
         else if (messages[i]=='x') ++x;
     
-    if (f >= TRANSMIT_COUNT) return 'f';
+    if (t >= TRANSMIT_COUNT) return 't';
+    else if (f >= TRANSMIT_COUNT) return 'f';
     else if (b >= TRANSMIT_COUNT) return 'b';
     else if (L >= TRANSMIT_COUNT) return 'L';
     else if (r >= TRANSMIT_COUNT) return 'r';
@@ -251,19 +270,25 @@ int main(void)
     TRISBbits.TRISB3 = 1;
     ADPCFGbits.PCFG3 = 1;
     TRISBbits.TRISB4 = 1;
-    ADPCFGbits.PCFG4 = 1;*/
+    ADPCFGbits.PCFG4 = 1;
+    TRISBbits.TRISB5 = 1;
+    ADPCFGbits.PCFG5 = 1;*/
+    
 	while(1)
 	{
         if(tempRX)
         {
             WriteUART1(tempRX);
-            parse(tempRX);
+            //parse(tempRX);
             tempRX=0;
             change_led1();
             change_led2();
             change_led3();
         }
         switch (get_movement_command()){
+        case 't':
+            set_turbo();
+            break;
         case 'f':
             set_forward();
             break;
@@ -277,6 +302,7 @@ int main(void)
             set_right();
             break;
         case 's':
+        case 'x':
             set_stop();
             break;
         case '0':
@@ -290,14 +316,16 @@ int main(void)
         if (PORTBbits.RB2)
             set_stop();
         if (PORTBbits.RB3)
-            
+            set_left();
         if (PORTBbits.RB4)
-            set_right();*/
+            set_right();
+        if (PORTBbits.RB5)
+            set_turbo();*/
         //for(broj1=0;broj1<3000;broj1++)
         for(broj2=0;broj2<1000;broj2++);
-    }//od whilea
+    } // while
     return 0;
-}//od maina
+} // main
 
 
 
